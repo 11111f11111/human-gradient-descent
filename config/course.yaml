@@ -20,7 +20,8 @@ learning:
   current_pass: 1
 
 collaboration:
-  primary_writer: "ChatGPT/Codex"
-  retrieval_tester: "Gemini/NotebookLM"
-  external_models_read_only: true
-
+  active_writer: null
+  storage_backend: "TODO: cloud drive, GitHub, or other persistent folder"
+  require_read_write_access: true
+  allow_any_compatible_ai: true
+  single_writer_per_session: true
