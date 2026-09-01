@@ -1,0 +1,26 @@
+course:
+  title: "TODO: Course title"
+  code: "TODO"
+  institution: "TODO"
+  semester: "TODO"
+  language: "TODO: e.g. English"
+
+exam:
+  date: null
+  format: "TODO: closed-book/open-book/mixed"
+  duration_minutes: null
+  allowed_materials: []
+  question_types: []
+  scoring_notes: "TODO"
+
+learning:
+  explanation_language: "Chinese"
+  preserve_english_terms: true
+  target: "understanding + recognition + fast retrieval + correct solving"
+  current_pass: 1
+
+collaboration:
+  primary_writer: "ChatGPT/Codex"
+  retrieval_tester: "Gemini/NotebookLM"
+  external_models_read_only: true
+
