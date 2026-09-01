@@ -11,10 +11,12 @@
 1. 本文件；
 2. `config/course.yaml`；
 3. `status/mastery.yaml`；
-4. `mistakes/mistakes.md`；
-5. 相关 `output/openbook/` 文件；
-6. `exam/exam_map.md`；
-7. 当前任务相关的测试、术语、知识库、习题和来源文件。
+4. `status/learner_profile.yaml`；
+5. `mistakes/mistakes.md`；
+6. `handoff/latest.md`；
+7. 相关 `output/openbook/` 文件；
+8. `exam/exam_map.md`；
+9. 当前任务相关的测试、术语、知识库、习题和来源文件。
 
 掌握度文件可能滞后。判断学生状态时，至少交叉核对最近测试、错题和学习回执。
 
@@ -61,6 +63,7 @@
 - 原始来源只放在 `sources/`，不要改写。
 - 详细解释写入 `kb/`；独立习题与历年题分开存放。
 - 每次完成学习单元，更新相应知识库、错题记录、测试结果和 `status/mastery.yaml`。
+- 只有用户明确说明或多次证据支持的稳定学习特征，才能写入 `status/learner_profile.yaml`；不得把一次错误或 AI 推测固化为长期画像。
 - 只有已经理解并经检查的高价值内容才进入 `output/openbook/`。
 - 开卷材料保持简短；复杂推导用链接或来源定位指向详细文件。
 - `.md` 是主版本；生成 PDF 时与 Markdown 并存，不删除或覆盖源文件。
@@ -77,3 +80,6 @@
 
 结束较长学习会话时，在 `handoff/latest.md` 写入：完成内容、证据、遗留问题、下一步、被修改文件。第三方模型输出先进入 `handoff/inbox.md`，核验后再写入正式知识库。
 
+## Memory model
+
+聊天历史不是长期状态的权威来源。长期状态必须写入仓库，新会话必须从仓库恢复。不要声称模型会永久记住用户；准确表述是：项目通过结构化状态、学习证据和会话交接减少跨窗口信息丢失。
