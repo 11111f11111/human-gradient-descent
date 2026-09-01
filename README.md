@@ -39,10 +39,12 @@
 1. `AGENTS.md`
 2. `config/course.yaml`
 3. `status/mastery.yaml`
-4. `mistakes/mistakes.md`
-5. `output/openbook/`
-6. `exam/exam_map.md`
-7. 当前任务涉及的 `tests/`、`vocabulary/`、`kb/`、`exercise/`
+4. `status/learner_profile.yaml`
+5. `mistakes/mistakes.md`
+6. `handoff/latest.md`
+7. `output/openbook/`
+8. `exam/exam_map.md`
+9. 当前任务涉及的 `tests/`、`vocabulary/`、`kb/`、`exercise/`
 
 不要只依据 `mastery.yaml` 判断掌握度；必须结合错题、测试记录和最近一次学习回执。
 
@@ -73,7 +75,7 @@
 | `tests/` | 无答案提示的小测、综合测验及作答记录 |
 | `mistakes/` | 错题与错误类型诊断 |
 | `vocabulary/` | 中英术语和常见英文题干 |
-| `status/` | 掌握度与最近学习状态 |
+| `status/` | 掌握度、已验证的学习特征与最近学习状态 |
 | `output/openbook/` | 高密度、可打印、双语开卷材料 |
 | `handoff/` | 不同模型或新会话之间的只读交接 |
 
@@ -101,6 +103,20 @@
 ## 8. 开卷材料原则
 
 只收录已经理解、测试、纠正过且考试时能直接调用的内容。优先放：题型识别信号、关键公式、固定步骤、易混淆对比、典型错误和来源位置。详细推导留在 `kb/` 或 `exercise/`，不要把开卷页写成教材。
+
+## 持久化学习与跨窗口恢复
+
+本项目不会假设聊天窗口拥有永久记忆。它把掌握度、稳定学习特征、历史错因和最近进度写入 GitHub 文件；新窗口按照固定顺序读取这些文件，从而恢复学习状态。
+
+```mermaid
+flowchart LR
+    A[学习与作答] --> B[生成学习证据]
+    B --> C[写回状态文件]
+    C --> D[新窗口读取]
+    D --> A
+```
+
+详细的首次配置、日常使用、状态写回和防止错误画像的方法，见 [`docs/WORKFLOW.md`](docs/WORKFLOW.md)。
 
 ## 9. License
 
