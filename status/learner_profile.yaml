@@ -1,0 +1,32 @@
+schema_version: 1
+last_updated: null
+
+# 只记录用户明确说明或经过多次学习证据验证的特征。
+# 不确定内容保持 null 或空列表，不允许根据一次作答进行人格推断。
+
+communication:
+  explanation_language: "Chinese"
+  preserve_english_terms: true
+  preferred_detail_level: null
+  preferred_interaction: null
+
+learning_patterns:
+  verified_strengths: []
+  recurring_difficulties: []
+  effective_explanations: []
+  ineffective_explanations: []
+
+error_patterns:
+  frequent_types: []
+  evidence: []
+
+exam_strategy:
+  time_pressure_notes: []
+  retrieval_preferences: []
+  priority_rules: []
+
+profile_rules:
+  require_evidence: true
+  distinguish_single_error_from_pattern: true
+  exclude_unrelated_sensitive_information: true
+
