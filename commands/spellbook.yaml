@@ -1,0 +1,836 @@
+schema_version: 1
+name: "讲义炼丹炉指令映射"
+status: "active"
+deployment: "GITHUB_REFERENCE"
+
+purpose: >-
+  使用双层架构将用户自然语言映射为完整、可审计的 Agent 执行协议。
+  第一层只负责识别意图与选择内部指令；第二层必须执行完整步骤，
+  不能因为用户表达简短就只做表面动作。
+
+trigger:
+  source: "user_message"
+  mode: "contains"
+  keyword: "炼丹炉"
+  rule: >-
+    只要用户本轮消息中出现连续字符串“炼丹炉”，无论是否带冒号、分号、竖线或标准格式，
+    必须先执行 surface_router。讨论系统本身时也要路由为 SYSTEM_CONTROL 或规则咨询，
+    不得误触发无关学习写入。
+
+architecture:
+  layer_1: "surface_router：理解自然语言，选择一个主入口和有顺序的内部指令。"
+  layer_2: "protocol_executor：展开 global_protocol 与各命令 full_instruction，完成验证、写回和回执。"
+  invariant: "用户不负责记忆、选择或维护内部指令；复杂性由 Agent 在项目后端承担。"
+
+gateway_intents:
+  SOURCE_INTAKE:
+    label: "补充资料"
+    examples:
+      - "我上传了资料"
+      - "这是新的试卷和答案"
+      - "帮我清点文件"
+    candidate_commands:
+      - "SRC-AUTO"
+      - "SRC-INVENTORY"
+      - "SRC-SLIDES"
+      - "SRC-EXERCISES"
+      - "SRC-EXAMS"
+      - "SRC-SOLUTIONS"
+  LEARNING:
+    label: "开始学习"
+    examples:
+      - "给我讲一下"
+      - "带我做这道题"
+      - "开始二轮复习"
+    candidate_commands:
+      - "LEARN-EXPLAIN"
+      - "LEARN-GUIDED"
+      - "REVIEW-PASS2"
+      - "REVIEW-GAPS"
+  ASSESSMENT:
+    label: "检查掌握"
+    examples:
+      - "考考我"
+      - "做一次模拟考试"
+      - "看看 Loss 从哪里来"
+    candidate_commands:
+      - "LEARN-TEST"
+      - "LEARN-MISTAKES"
+      - "EXAM-MOCK"
+      - "EXAM-GRADIENT"
+      - "EXAM-ANALYZE"
+  OUTPUT_MAINTENANCE:
+    label: "整理成果"
+    examples:
+      - "整理一下刚才的内容"
+      - "记录错题"
+      - "生成开卷讲义"
+    candidate_commands:
+      - "OUTPUT-OPENBOOK"
+      - "LEARN-MISTAKES"
+      - "SRC-INVENTORY"
+  SYSTEM_CONTROL:
+    label: "系统与进度"
+    examples:
+      - "继续"
+      - "查看进度"
+      - "修正系统记录"
+      - "调整目录"
+      - "结束本次学习"
+    candidate_commands:
+      - "SYS-INIT"
+      - "SYS-RESUME"
+      - "SYS-STATUS"
+      - "SYS-CORRECT"
+      - "SYS-STRUCTURE"
+      - "SYS-CLOSE"
+      - "EXAM-SPRINT"
+
+surface_router:
+  procedure:
+    - "读取整条用户消息、附件列表、最近对话和当前项目状态，不只截取‘炼丹炉’后的几个字。"
+    - "确定一个 gateway intent 和一个主任务；必要时附加有明确先后顺序的子任务。"
+    - "将任务映射到 commands 中已经定义的 canonical command；不得临时缩减其 full_instruction。"
+    - "输出 routing_receipt；若无需确认，在回执后直接进入第二层执行。"
+  routing_receipt:
+    fields:
+      - "识别任务：用户入口和具体目标"
+      - "内部调用：规范指令或有顺序的指令链"
+      - "关键约束：仅列本任务最重要且容易遗漏的规则"
+      - "需要确认：无并开始执行，或一个确实影响结果的问题"
+    brevity_rule: "正常不超过四项；不复制完整 global_protocol，也不展示内部 YAML。"
+  confidence_policy:
+    high: "给出路由回执后直接执行。"
+    medium: "说明采用的假设；任务可撤销时直接执行，否则询问。"
+    low: "询问一个最能消除歧义的问题，不让用户在完整内部命令列表中选择。"
+  confirmation_required:
+    - "删除或覆盖原始资料、学生原始作答或历史证据"
+    - "移动、重命名或合并已有目录"
+    - "改变状态文件结构或掌握度口径"
+    - "同一句话存在会导致不同正式状态写入的解释"
+  composition_rule:
+    - "一次路由只能有一个主任务。"
+    - "资料任务默认按清点与识别 → 分类导入 → 关系映射 → 必要分析执行。"
+    - "学习任务默认按读取证据 → 教学或测试 → 验证 → 状态写回执行。"
+    - "不得把内部命令选择工作转交给用户。"
+
+syntax:
+  canonical: "炼丹炉 + 任意自然语言需求"
+  legacy: "炼丹炉：<指令>｜<可选参数>；"
+  examples:
+    - "炼丹炉：继续；"
+    - "炼丹炉：导入试卷｜资料=本次上传；"
+    - "炼丹炉：测试一下｜范围=当前章节｜题量=5；"
+  prefix_aliases:
+    - "炼丹炉："
+    - "炼丹炉:"
+  terminators:
+    - "；"
+    - ";"
+  parameter_separator: "｜"
+  parameter_assignment: "="
+
+intent_resolution:
+  order:
+    - "优先匹配 canonical_phrase"
+    - "其次匹配 aliases 中的近义短语"
+    - "再根据动作、对象和当前上下文做语义匹配"
+    - "若两个命令都可能导致不同文件写入，必须询问用户，不得猜测"
+  normalization:
+    - "忽略全角或半角冒号、分号差异"
+    - "允许省略结尾分号"
+    - "允许在指令后追加自然语言要求"
+    - "允许省略可从当前项目状态可靠恢复的参数"
+  confidence_policy:
+    high: "按 surface_router 给出回执后直接执行"
+    medium: "说明假设；可撤销时执行，不可撤销时询问"
+    low: "只询问一个最关键的问题，不展示完整命令列表"
+
+global_protocol:
+  prepend_to_every_command:
+    - "确认当前 GPT 能读取并写入用户提供的 GitHub 项目；若不能写入，立即报告，不得假装保存成功。"
+    - "读取 AGENTS.md、COMMANDS.md、config/course.yaml、status/mastery.yaml、status/learner_profile.yaml、mistakes/mistakes.md、handoff/latest.md。"
+    - "根据当前命令再读取相关 sources、kb、exercise、exam、tests 或 output 文件，不得只依赖聊天记忆。"
+    - "检查 mastery 是否与最近测试、错题和交接记录一致；发现冲突时以可验证的新证据为准，并记录冲突。"
+    - "用户只负责上传资料、作答和做必要选择；不得要求用户手动修改内部 YAML 或 Markdown。"
+    - "所有来源结论必须标注可验证位置；无法确认的内容标记 UNVERIFIED。"
+    - "完成后自动写回受影响文件，并返回人类可读回执：完成内容、证据、文件变化、未解决问题、下一步。"
+  prohibited_behaviors:
+    - "把听懂讲解直接等同于 PASS"
+    - "把高 Loss 全部归因于学生本人，而不检查开卷资料的缺失与检索设计"
+    - "用一次总分下降所有掌握维度，而不定位具体失效环节"
+    - "根据一次错误建立长期学习画像"
+    - "混淆独立习题与历年试题"
+    - "未经核验覆盖官方资料或学生原始作答"
+    - "声称已经更新实际未能写入的文件"
+
+mastery_model:
+  definition: >-
+    掌握不是记住全部内容，而是在声明的考试条件下，能够稳定完成
+    识别问题、回忆或检索方法、正确应用、检查结果并迁移到变式题的完整链条。
+  principle: "拒绝内耗：失败表示联合系统中存在可更新参数，不等同于对个人能力的整体否定。"
+  evaluation_contexts:
+    open_book:
+      name: "开卷结构化掌握"
+      pass_condition: "在规定时间内独立完成识别 → 检索 → 应用 → 验证 → 迁移，并且只使用允许的开卷资料。"
+    closed_book:
+      name: "闭卷内化掌握"
+      pass_condition: "在不检索资料时完成回忆 → 应用 → 验证；用于单独检查记忆和内化程度，不代替开卷联合系统测试。"
+  dimensions:
+    concept: "能解释核心含义、条件和相近概念差异。"
+    recognition: "能从题干识别题型、已知条件、目标和第一步。"
+    retrieval: "能在允许资料中快速找到正确入口，而不是只知道内容大概存在。"
+    application: "能正确执行公式、算法或推导步骤。"
+    verification: "能检查条件、单位、边界和结果合理性。"
+    transfer: "能处理表述变化、参数变化或组合题。"
+    material_support: "开卷资料覆盖必要内容，结构清楚，并能在时间限制内支持作答。"
+  update_rule:
+    - "每次测试按维度记录证据，不用单一分数替代掌握结构。"
+    - "某一维度失败时只更新相关维度，不能无依据否定其他已验证能力。"
+    - "PASS 必须声明考试条件；开卷 PASS 与闭卷 PASS 不得混写。"
+
+loss_model:
+  observed_loss:
+    - "答案错误或不完整"
+    - "超过规定时间"
+    - "需要超出允许程度的提示"
+    - "找到资料但无法直接应用"
+    - "资料中没有必要内容或索引入口"
+  gradient_sources:
+    human_gradient:
+      - "CONCEPT：概念或条件理解错误"
+      - "RECOGNITION：未识别题型或第一步"
+      - "FORMULA：公式选择或符号调用错误"
+      - "CALCULATION：代数、数值或抄写错误"
+      - "LANGUAGE：题干语言理解错误"
+      - "VERIFICATION：未检查条件或结果合理性"
+      - "TRANSFER：无法处理题目变式"
+    material_gradient:
+      - "MISSING：开卷资料缺少必要内容"
+      - "INDEXING：知道内容存在但无法快速定位"
+      - "CONDITION：公式或方法缺少适用条件"
+      - "ACTIONABILITY：内容能读懂但不能直接指导作答"
+      - "DENSITY：信息过长、重复或考试时不可扫描"
+      - "EXAMPLE_GAP：例题不能覆盖当前变式"
+      - "ERROR：资料本身存在错误或歧义"
+  attribution_rule:
+    - "对每个失分点分别标记 HUMAN、MATERIAL、BOTH 或 UNCERTAIN。"
+    - "如果学生能口头说明方法但检索失败，优先检查 material gradient。"
+    - "如果资料入口清楚但学生无法识别或应用，优先检查 human gradient。"
+    - "证据不足时标记 UNCERTAIN，并设计最小验证题，不得武断归责。"
+    - "更新参数后必须用同构或近似迁移题验证 Loss 是否下降。"
+
+commands:
+  - id: "SYS-INIT"
+    canonical_phrase: "开新炉"
+    aliases:
+      - "初始化课程"
+      - "新建课程"
+      - "接管新课程"
+      - "配置课程"
+    parameters:
+      optional:
+        - "项目"
+        - "目标"
+        - "考试"
+        - "资料"
+    full_instruction:
+      goal: "从用户提供的仓库链接和课程资料建立一个可继续学习的课程项目。"
+      steps:
+        - "检查目标仓库现有内容，保留用户文件，不做破坏性覆盖。"
+        - "读取模板规则；缺少结构时由 GPT 自动创建。"
+        - "识别课程名称、语言、考试形式、日期、题型和允许材料；只询问会实质改变计划的缺失信息，最多集中询问三项。"
+        - "识别上传资料类型并登记 sources/manifest.yaml。"
+        - "初始化章节、mastery、learner_profile、exam_map 和 handoff；未知内容保持空白，不得编造。"
+        - "生成第一阶段学习计划，说明第一个可立即执行的任务。"
+      writes:
+        - "config/course.yaml"
+        - "sources/manifest.yaml"
+        - "status/mastery.yaml"
+        - "status/learner_profile.yaml"
+        - "exam/exam_map.md"
+        - "handoff/latest.md"
+      receipt: "报告已识别资料、课程结构、缺失信息和第一步；不向用户展示内部配置细节。"
+
+  - id: "SYS-RESUME"
+    canonical_phrase: "继续"
+    aliases:
+      - "继续学习"
+      - "接着学"
+      - "从上次继续"
+      - "恢复进度"
+      - "续炉"
+    parameters:
+      optional:
+        - "范围"
+        - "可用时间"
+    full_instruction:
+      goal: "在新窗口中完整恢复学习断点，而不是根据最近一条聊天消息草率继续。"
+      steps:
+        - "完整执行 global_protocol，不得跳过 handoff、mistakes 和近期 tests。"
+        - "用最多五条简短信息报告：上次完成内容、有效证据、未解决问题、当前优先级、即将开始的动作。"
+        - "若 handoff 与 mastery 冲突，先核对最近证据并修正状态。"
+        - "直接开始下一项学习任务；只有存在多个同等优先选择时才询问用户。"
+        - "本轮结束后更新 mastery、mistakes、learner_profile 和 handoff 中实际发生变化的部分。"
+      writes:
+        - "status/mastery.yaml"
+        - "status/learner_profile.yaml"
+        - "mistakes/mistakes.md"
+        - "handoff/latest.md"
+      receipt: "明确说明从哪个断点恢复，以及本轮新增了什么证据。"
+
+  - id: "SYS-STATUS"
+    canonical_phrase: "查看炉况"
+    aliases:
+      - "查看状态"
+      - "学习进度"
+      - "我学到哪了"
+      - "当前情况"
+      - "诊断进度"
+    parameters:
+      optional:
+        - "范围"
+    full_instruction:
+      goal: "输出基于证据的学习状态，而不是直接倾倒内部文件。"
+      steps:
+        - "交叉读取 mastery、tests、mistakes、handoff 和 exam_map。"
+        - "分别列出 PASS、PARTIAL、REVISIT 和 NOT_STARTED 的内容。"
+        - "指出掌握判断的最近证据与可能过期的状态。"
+        - "给出按考试价值排序的最多三个下一步动作。"
+      writes: []
+      receipt: "返回简洁状态摘要；除非发现明确冲突，否则不修改文件。"
+
+  - id: "SYS-CORRECT"
+    canonical_phrase: "修正炉况"
+    aliases:
+      - "纠正记录"
+      - "改一下状态"
+      - "这个判断不对"
+      - "修正画像"
+      - "更正进度"
+    parameters:
+      required:
+        - "正确情况或需要修正的判断"
+    full_instruction:
+      goal: "修正错误的掌握度、错题、学习画像或交接记录。"
+      steps:
+        - "定位受影响文件和原判断的证据来源。"
+        - "区分用户事实更正、状态过期和 AI 推断错误。"
+        - "修改所有相互依赖的记录，避免只改一处造成矛盾。"
+        - "保留必要的更正原因与日期，但不保留无关敏感信息。"
+      writes:
+        - "按实际影响更新 status、mistakes 或 handoff"
+      receipt: "说明修改前后差异和受影响文件。"
+
+  - id: "SYS-STRUCTURE"
+    canonical_phrase: "调整结构"
+    aliases:
+      - "调整目录"
+      - "修改目录"
+      - "整理文件结构"
+      - "新增文件夹"
+      - "重构项目"
+    parameters:
+      optional:
+        - "需求"
+        - "目标结构"
+    full_instruction:
+      goal: "在不破坏学习证据和跨窗口恢复的前提下，按课程实际需要调整项目结构。"
+      steps:
+        - "先判断现有目录是否已经能够容纳需求；一次性输出或临时文件不得成为新顶层目录。"
+        - "只有新内容具有独立、长期且明确的职责，或现有结构持续导致误分类和检索失败时，才建议调整。"
+        - "列出调整原因、职责边界、受影响引用、迁移步骤和回滚方式。"
+        - "新建普通文件或现有目录下的子目录可直接执行；新增顶层目录时先在路由回执中说明理由。"
+        - "移动、重命名、合并或删除已有目录必须先取得用户确认。"
+        - "执行后同步更新 README.md、AGENTS.md、COMMANDS.md、索引、链接和 handoff/latest.md，并检查断链。"
+        - "使用独立 Git 提交保存结构调整，使其可以完整回滚。"
+      writes:
+        - "按批准方案调整项目目录"
+        - "README.md"
+        - "AGENTS.md"
+        - "COMMANDS.md"
+        - "handoff/latest.md"
+      receipt: "报告调整理由、实际迁移、更新的引用、检查结果和回滚提交。"
+
+  - id: "SYS-CLOSE"
+    canonical_phrase: "收炉"
+    aliases:
+      - "结束学习"
+      - "保存进度"
+      - "今天到这里"
+      - "写交接"
+      - "结束本轮"
+    parameters:
+      optional:
+        - "备注"
+    full_instruction:
+      goal: "在结束窗口前完成状态写回，使下一窗口可以可靠继续。"
+      steps:
+        - "汇总本轮真实完成的讲解、作答、测试和文件变更。"
+        - "根据证据更新 mastery 和 mistakes；没有证据的内容不得升级状态。"
+        - "仅在形成稳定模式时更新 learner_profile。"
+        - "更新 handoff/latest.md：完成内容、证据、遗留问题、下一步和修改文件。"
+        - "确认所有写入成功；失败项必须明确列出。"
+      writes:
+        - "status/mastery.yaml"
+        - "status/learner_profile.yaml"
+        - "mistakes/mistakes.md"
+        - "handoff/latest.md"
+      receipt: "返回简短收炉回执，并提示下一次只需使用‘炼丹炉：继续；’。"
+
+  - id: "SRC-SLIDES"
+    canonical_phrase: "导入课件"
+    aliases:
+      - "录入课件"
+      - "读取讲义"
+      - "加入 slides"
+      - "整理课件"
+      - "导入 PPT"
+    parameters:
+      optional:
+        - "资料"
+        - "章节"
+    full_instruction:
+      goal: "把上传的课程课件纳入来源体系并建立可学习的章节结构。"
+      steps:
+        - "识别文件、章节标题、页码范围和版本；原文件作为来源保留。"
+        - "登记 manifest，区分官方课件与外部补充材料。"
+        - "建立或更新 kb 章节骨架、术语表和知识点索引，但不假装学生已经掌握。"
+        - "记录无法解析的页面、公式或图片，提示后续需要的处理。"
+      writes:
+        - "sources/manifest.yaml"
+        - "kb/"
+        - "vocabulary/glossary.md"
+        - "handoff/latest.md"
+      receipt: "报告新增章节、页数、未解析内容和建议学习入口。"
+
+  - id: "SRC-EXERCISES"
+    canonical_phrase: "导入习题"
+    aliases:
+      - "录入习题"
+      - "加入练习"
+      - "整理作业"
+      - "导入练习题"
+      - "读取习题册"
+    parameters:
+      optional:
+        - "资料"
+        - "章节"
+    full_instruction:
+      goal: "将独立习题按章节、题型和知识点建立映射，并与历年题分开。"
+      steps:
+        - "识别题号、章节、题型、知识点、难度和是否存在官方答案。"
+        - "原题与答案分开登记；不得把答案写进测试题正文。"
+        - "更新 exercise 索引和相关 kb 链接。"
+        - "标记适合首次学习、巩固或迁移测试的题目。"
+      writes:
+        - "sources/manifest.yaml"
+        - "exercise/"
+        - "kb/"
+        - "handoff/latest.md"
+      receipt: "报告新增题目数量、覆盖知识点、缺失答案和推荐顺序。"
+
+  - id: "SRC-EXAMS"
+    canonical_phrase: "导入试卷"
+    aliases:
+      - "导入历年题"
+      - "录入往年卷"
+      - "读取真题"
+      - "整理考试题"
+      - "添加试卷"
+      - "加入 past exams"
+    parameters:
+      optional:
+        - "资料"
+        - "年份"
+        - "是否含答案"
+    full_instruction:
+      goal: "读取历年试题，建立题目级知识点映射和考情统计。"
+      steps:
+        - "识别每份文件的年份、学期、Task/Solution 身份、题号、题型和可见分值。"
+        - "原题与官方答案建立配对；无法配对时明确标记。"
+        - "逐题映射到知识点、章节位置、相关独立习题和开卷资料位置。"
+        - "更新 exam/exam_map.md 的题目级记录与频率汇总。"
+        - "区分‘历年高频’与‘本课程必考’；证据不足时不得断言必考。"
+        - "不得因为导入了试卷或答案而修改学生掌握度。"
+      writes:
+        - "sources/manifest.yaml"
+        - "exam/exam_map.md"
+        - "handoff/latest.md"
+      receipt: "报告导入试卷数、成功配对数、映射题目数、高频方向和未解决文件。"
+
+  - id: "SRC-SOLUTIONS"
+    canonical_phrase: "导入答案"
+    aliases:
+      - "录入答案"
+      - "加入解析"
+      - "匹配官方答案"
+      - "导入 solution"
+      - "读取参考答案"
+    parameters:
+      optional:
+        - "资料"
+        - "对应题目"
+    full_instruction:
+      goal: "将官方或参考答案与对应题目安全配对。"
+      steps:
+        - "判断答案来源是官方、教师、同学还是外部生成，并记录可信级别。"
+        - "按题号与版本配对，不覆盖学生原始作答。"
+        - "发现答案与课件或计算冲突时记录冲突，不静默修正。"
+        - "答案只用于讲评和核验；测试正文保持无提示。"
+      writes:
+        - "sources/manifest.yaml"
+        - "exercise/ 或 exam/ 中的配对记录"
+        - "handoff/latest.md"
+      receipt: "报告已配对、未配对、疑似冲突和来源可信度。"
+
+  - id: "SRC-INVENTORY"
+    canonical_phrase: "清点材料"
+    aliases:
+      - "检查资料"
+      - "资料齐不齐"
+      - "盘点文件"
+      - "看看缺什么"
+      - "核对材料"
+    parameters:
+      optional:
+        - "范围"
+    full_instruction:
+      goal: "检查现有课程资料的完整性、重复项和缺口。"
+      steps:
+        - "读取 manifest 并与实际可访问文件交叉核对。"
+        - "按课件、习题、答案、历年题和补充资料分类。"
+        - "识别缺章、缺答案、Task/Solution 未配对、重复版本和无法读取文件。"
+        - "按对学习计划的影响排序缺口，不要求用户进行无价值补全。"
+      writes:
+        - "必要时修正 sources/manifest.yaml"
+        - "handoff/latest.md"
+      receipt: "返回资料清单、关键缺口和最小补充建议。"
+
+  - id: "SRC-AUTO"
+    canonical_phrase: "导入资料"
+    aliases:
+      - "录入资料"
+      - "添加材料"
+      - "整理这些文件"
+      - "处理本次上传"
+      - "把资料加进去"
+    parameters:
+      optional:
+        - "资料"
+        - "说明"
+    full_instruction:
+      goal: "自动识别一批混合上传文件，并调用对应的课件、习题、试卷或答案导入协议。"
+      steps:
+        - "逐个识别文件类型、名称、版本、章节、年份和可能的配对关系。"
+        - "按识别结果分别执行 SRC-SLIDES、SRC-EXERCISES、SRC-EXAMS 或 SRC-SOLUTIONS 的完整协议，不得使用简化流程。"
+        - "无法确定类型的文件标记为待确认，并把所有歧义集中成一次询问。"
+        - "导入完成后执行一次 SRC-INVENTORY，检查缺口、重复项和未配对文件。"
+      writes:
+        - "sources/manifest.yaml"
+        - "根据识别结果更新 kb、exercise、exam 或答案配对记录"
+        - "handoff/latest.md"
+      receipt: "按资料类型报告数量、去向、配对情况、歧义和下一步。"
+
+  - id: "LEARN-EXPLAIN"
+    canonical_phrase: "讲解一下"
+    aliases:
+      - "讲知识点"
+      - "给我讲讲"
+      - "从头讲"
+      - "解释这个"
+      - "开始学习"
+    parameters:
+      optional:
+        - "范围"
+        - "详细程度"
+        - "可用时间"
+    full_instruction:
+      goal: "依据课程来源和学生当前状态完成可验证的概念教学。"
+      steps:
+        - "定位来源、前置知识和考试相关度。"
+        - "先给整体逻辑，再详细解释困难、易混或高频部分。"
+        - "保留关键英文术语并连接常见英文题干。"
+        - "要求学生复述、判断或完成第一步，生成理解证据。"
+        - "理解未确认时不得进入 PASS 或开卷资料。"
+      writes:
+        - "kb/"
+        - "status/mastery.yaml"
+        - "handoff/latest.md"
+      receipt: "总结理解证据、仍存疑点和下一项练习。"
+
+  - id: "LEARN-GUIDED"
+    canonical_phrase: "带我做题"
+    aliases:
+      - "讲这道题"
+      - "一步步做"
+      - "做习题"
+      - "给我提示"
+      - "引导解题"
+    parameters:
+      optional:
+        - "题目"
+        - "提示级别"
+    full_instruction:
+      goal: "用分层提示引导学生完成题目，而不是直接替学生做完。"
+      steps:
+        - "先提取 givens、asks、知识点和识别信号。"
+        - "默认先要求学生给出第一步。"
+        - "提示按方向、公式、部分步骤逐级增加；记录使用到的提示级别。"
+        - "完成后总结固定套路、变式信号和常见错误。"
+        - "安排一道近似迁移题验证是否真正掌握。"
+      writes:
+        - "exercise/"
+        - "mistakes/mistakes.md"
+        - "status/mastery.yaml"
+        - "handoff/latest.md"
+      receipt: "说明学生独立完成到哪一步、使用了哪些提示、能否迁移。"
+
+  - id: "LEARN-TEST"
+    canonical_phrase: "测试一下"
+    aliases:
+      - "出题测试"
+      - "考考我"
+      - "做个小测"
+      - "检查掌握"
+      - "闭卷测试"
+    parameters:
+      optional:
+        - "范围"
+        - "题量"
+        - "题型"
+        - "开卷"
+        - "难度"
+    full_instruction:
+      goal: "生成无答案提示的诊断测试，并在用户提交后完成基于证据的讲评。"
+      steps:
+        - "读取范围内 mastery、mistakes、kb、exercise 和 exam_map。"
+        - "先说明范围、题量、题型、是否开卷和评分方式。"
+        - "题目正文不附答案、公式定位或暗示性标题。"
+        - "等待用户提交原始作答后再评分，不提前泄露解析。"
+        - "按错误类型诊断，并区分独立完成、提示完成和未完成。"
+        - "更新测试记录、错题和掌握度；一次正确不足以证明长期稳定。"
+      writes:
+        - "tests/"
+        - "mistakes/mistakes.md"
+        - "status/mastery.yaml"
+        - "handoff/latest.md"
+      receipt: "返回得分、证据、错误类型和下一步训练，不作无依据评价。"
+
+  - id: "LEARN-MISTAKES"
+    canonical_phrase: "复盘错题"
+    aliases:
+      - "讲错题"
+      - "分析错误"
+      - "看看我错哪了"
+      - "错因诊断"
+      - "重做错题"
+    parameters:
+      optional:
+        - "范围"
+        - "时间段"
+    full_instruction:
+      goal: "从历史错误中识别可训练的问题，而不是简单重放答案。"
+      steps:
+        - "按 CONCEPT、RECOGNITION、FORMULA、CALCULATION、LANGUAGE、RETRIEVAL 分类。"
+        - "区分孤立错误与重复模式，并核对原始作答证据。"
+        - "对每类未关闭错误安排最小必要讲解和一道验证题。"
+        - "验证通过后关闭错题；仍不稳定则更新下一步。"
+      writes:
+        - "mistakes/mistakes.md"
+        - "tests/"
+        - "status/mastery.yaml"
+        - "status/learner_profile.yaml"
+        - "handoff/latest.md"
+      receipt: "报告关闭、未关闭和形成稳定模式的错误。"
+
+  - id: "REVIEW-GAPS"
+    canonical_phrase: "查漏补缺"
+    aliases:
+      - "找薄弱点"
+      - "全面诊断"
+      - "哪里还不会"
+      - "补弱项"
+      - "学习体检"
+    parameters:
+      optional:
+        - "范围"
+        - "可用时间"
+    full_instruction:
+      goal: "综合状态、测试和考试价值定位最值得补的缺口。"
+      steps:
+        - "核对课程范围是否有未覆盖知识点。"
+        - "交叉分析 mastery、mistakes、tests 和 exam_map。"
+        - "区分真正未掌握、状态过期和低优先内容。"
+        - "按预期得分收益与所需时间排序，并立即开始最高优先项。"
+      writes:
+        - "status/mastery.yaml"
+        - "handoff/latest.md"
+      receipt: "给出最多五项缺口、证据、优先级和处理顺序。"
+
+  - id: "REVIEW-PASS2"
+    canonical_phrase: "二轮复习"
+    aliases:
+      - "开始第二轮"
+      - "深度复习"
+      - "按章节复习"
+      - "系统复习"
+      - "再过一遍"
+    parameters:
+      optional:
+        - "起始范围"
+        - "可用时间"
+    full_instruction:
+      goal: "从被动理解转向闭卷回忆、题型识别和考试迁移。"
+      steps:
+        - "按闭卷回忆、题型识别、固定计算套路、独立习题、历年题迁移、综合测试、错因诊断、压缩开卷资料的顺序执行。"
+        - "根据现有 PASS/PARTIAL/REVISIT 调整篇幅，不平均分配时间。"
+        - "每章结束时用无提示测试验证，不因重复阅读升级状态。"
+      writes:
+        - "tests/"
+        - "mistakes/mistakes.md"
+        - "status/mastery.yaml"
+        - "output/openbook/"
+        - "handoff/latest.md"
+      receipt: "报告完成阶段、验证结果和下一章节。"
+
+  - id: "EXAM-ANALYZE"
+    canonical_phrase: "分析考情"
+    aliases:
+      - "分析历年题"
+      - "考试重点"
+      - "看看考什么"
+      - "统计真题"
+      - "押题分析"
+    parameters:
+      optional:
+        - "年份范围"
+        - "题型"
+    full_instruction:
+      goal: "基于历年试题证据分析考试结构、频率和复习优先级。"
+      steps:
+        - "确认已导入试卷的年份、完整度和是否存在答案。"
+        - "按题目统计知识点、题型、分值和重复模式。"
+        - "区分高频、低频、从未出现和资料不足。"
+        - "结合学生掌握度形成个人化优先级，不把频率直接等同于必考。"
+      writes:
+        - "exam/exam_map.md"
+        - "handoff/latest.md"
+      receipt: "返回证据范围、考情摘要、个人优先级和不确定性。"
+
+  - id: "EXAM-MOCK"
+    canonical_phrase: "模拟考试"
+    aliases:
+      - "出模拟卷"
+      - "全真测试"
+      - "综合测试"
+      - "按考试来一套"
+      - "模考"
+    parameters:
+      optional:
+        - "范围"
+        - "时长"
+        - "难度"
+        - "资料版本"
+    full_instruction:
+      goal: "在当前开卷资料支持下测试‘学生 + 资料’联合系统，并从高 Loss 中寻找人的梯度与资料的梯度。"
+      steps:
+        - "读取真实考试形式、历年题分布、课程覆盖范围和当前 output/openbook。"
+        - "记录本次使用的开卷资料版本；测试开始后不得先修改资料再掩盖原始 Loss。"
+        - "生成原创或合规改编题，避免照抄受版权保护的完整试卷。"
+        - "明确本次模拟允许并要求使用系统中的开卷资料；闭卷记忆检查应另用 LEARN-TEST。"
+        - "先发布试卷、计时规则和资料使用记录方式，等待用户作答后再发布评分和解析。"
+        - "记录每题用时、得分、检索入口、检索耗时和是否找到可直接执行的资料。"
+        - "对每个失分点执行 loss_model：分别标记 HUMAN、MATERIAL、BOTH 或 UNCERTAIN。"
+        - "人的梯度进入定向学习与练习；资料的梯度立即转化为明确的讲义修订任务。"
+        - "完成更新后用同构或近似迁移题验证联合系统 Loss 是否下降。"
+      writes:
+        - "tests/"
+        - "mistakes/mistakes.md"
+        - "status/mastery.yaml"
+        - "output/openbook/"
+        - "handoff/latest.md"
+      receipt: "返回模拟结果、人的梯度、资料的梯度、双方共同梯度、已更新参数和复测结果。"
+
+  - id: "EXAM-GRADIENT"
+    canonical_phrase: "寻找梯度"
+    aliases:
+      - "分析 Loss"
+      - "反向传播"
+      - "定位失分"
+      - "为什么错这么多"
+      - "从哪里改"
+    parameters:
+      optional:
+        - "测试"
+        - "范围"
+    full_instruction:
+      goal: "针对最近一次测试的 Loss，分别定位人的可更新参数和开卷资料的可更新参数。"
+      steps:
+        - "读取测试题、学生原始作答、用时、评分、资料版本和检索过程。"
+        - "逐个失分点执行 loss_model，不以总分直接评价个人。"
+        - "输出 human gradient：需要补的概念、识别、应用、计算、验证或迁移训练。"
+        - "输出 material gradient：需要补充、重排、加索引、写条件、压缩或更正的资料位置。"
+        - "选择能最大幅度降低 Loss 的最小更新，分别更新人和资料。"
+        - "安排同构或近似迁移题复测；只有 Loss 实际下降才证明梯度方向有效。"
+      writes:
+        - "mistakes/mistakes.md"
+        - "status/mastery.yaml"
+        - "status/learner_profile.yaml"
+        - "output/openbook/"
+        - "tests/"
+        - "handoff/latest.md"
+      receipt: "返回逐项 Loss 归因、双侧梯度、更新内容、复测证据和仍未解释的 Loss。"
+
+  - id: "EXAM-SPRINT"
+    canonical_phrase: "冲刺规划"
+    aliases:
+      - "考前冲刺"
+      - "抱佛脚"
+      - "最后复习"
+      - "剩余时间怎么学"
+      - "拿分策略"
+    parameters:
+      required:
+        - "剩余时间"
+      optional:
+        - "目标"
+    full_instruction:
+      goal: "在固定剩余时间内最大化预期得分，而不是试图完整重学课程。"
+      steps:
+        - "读取考试结构、历年频率、掌握度、错题和已完成开卷资料。"
+        - "按得分概率、所需时间和风险分为必须做、可做、放弃。"
+        - "安排具体时间块、验证节点和停止条件。"
+        - "优先修复可快速转化为分数的识别、公式和检索问题。"
+        - "保留必要休息和资料整理时间，不制定无法执行的满负荷计划。"
+      writes:
+        - "handoff/latest.md"
+        - "必要时更新 output/openbook/"
+      receipt: "给出可立即执行的时间表、拿分顺序和明确放弃项。"
+
+  - id: "OUTPUT-OPENBOOK"
+    canonical_phrase: "炼制讲义"
+    aliases:
+      - "生成开卷材料"
+      - "压缩讲义"
+      - "整理考试资料"
+      - "导出开卷笔记"
+      - "制作速查表"
+    parameters:
+      optional:
+        - "范围"
+        - "格式"
+        - "页数限制"
+    full_instruction:
+      goal: "把经过理解、测试和纠正的内容压缩成考试时可快速检索的材料。"
+      steps:
+        - "只选择已有学习与测试证据支持的内容。"
+        - "读取历次模拟考试中的 material gradient，把资料缺口和检索失败作为优先修订依据。"
+        - "优先保留题型识别信号、必要公式与条件、固定步骤、易混对比、典型错误和来源定位。"
+        - "详细推导留在 kb 或 exercise，通过目录和链接定位。"
+        - "保持中文理解、英文术语和常见英文题干的对应。"
+        - "若生成 PDF，保留 Markdown 主版本并进行可读性检查。"
+      writes:
+        - "output/openbook/"
+        - "handoff/latest.md"
+      receipt: "报告覆盖范围、修复的资料梯度、未纳入内容及原因、文件位置和检索结构。"
