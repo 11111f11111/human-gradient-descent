@@ -1,0 +1,21 @@
+schema_version: 1
+last_updated: null
+overall_status: NOT_STARTED
+
+chapters:
+  - id: ch01
+    title: "TODO"
+    status: NOT_STARTED
+    confidence: null
+    last_studied: null
+    evidence: []
+    strengths: []
+    weaknesses: []
+    next_action: "Add chapter scope and begin Pass 1"
+
+status_definitions:
+  PASS: "Independent recognition and solution of core tasks"
+  PARTIAL: "Understands main idea but needs prompts or remains error-prone"
+  REVISIT: "Concept, recognition, or formula use is unstable"
+  NOT_STARTED: "No valid learning evidence"
+
