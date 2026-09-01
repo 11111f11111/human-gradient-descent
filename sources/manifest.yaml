@@ -1,0 +1,12 @@
+schema_version: 1
+sources: []
+
+# Example entry:
+# - id: slides_ch01
+#   type: lecture_slides
+#   path: sources/slides/ch01.pdf
+#   title: "Chapter 1"
+#   official: true
+#   coverage: "pages 1-40"
+#   notes: ""
+
