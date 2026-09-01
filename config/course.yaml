@@ -20,8 +20,12 @@ learning:
   current_pass: 1
 
 collaboration:
-  active_writer: null
-  storage_backend: "TODO: cloud drive, GitHub, or other persistent folder"
+  reference_ai: "GPT"
+  source_of_truth: "GitHub"
+  active_writer: "GPT with GitHub read/write access"
+  workspace: "local or cloud, managed by GPT"
   require_read_write_access: true
-  allow_any_compatible_ai: true
   single_writer_per_session: true
+  other_ai_requires_adaptation: true
+  unsupported_ai:
+    - "Gemini"
