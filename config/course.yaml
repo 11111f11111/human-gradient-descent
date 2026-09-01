@@ -27,5 +27,5 @@ collaboration:
   require_read_write_access: true
   single_writer_per_session: true
   other_ai_requires_adaptation: true
-  unsupported_ai:
-    - "Gemini"
+  parallel_ai_writers_allowed: false
+  ai_handoff_required_on_switch: true
