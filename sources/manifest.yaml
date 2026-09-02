@@ -5,8 +5,9 @@ sources: []
 # - id: slides_ch01
 #   type: lecture_slides
 #   path: sources/slides/ch01.pdf
+#   fingerprint: "sha256-or-platform-file-id"
+#   imported_by_operation: "YYYYMMDDTHHMMSSZ-SRC-SLIDES"
 #   title: "Chapter 1"
 #   official: true
 #   coverage: "pages 1-40"
 #   notes: ""
-

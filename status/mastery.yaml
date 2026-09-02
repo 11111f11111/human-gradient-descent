@@ -1,21 +1,41 @@
-schema_version: 1
+schema_version: 2
 last_updated: null
-overall_status: NOT_STARTED
+
+overall_status:
+  open_book: NOT_STARTED
+  closed_book: NOT_STARTED
 
 chapters:
   - id: ch01
     title: "TODO"
-    status: NOT_STARTED
-    confidence: null
-    last_studied: null
-    evidence: []
+    contexts:
+      open_book:
+        status: NOT_STARTED
+        material_version: null
+        last_verified: null
+        evidence: []
+      closed_book:
+        status: NOT_STARTED
+        last_verified: null
+        evidence: []
     strengths: []
     weaknesses: []
     next_action: "Add chapter scope and begin Pass 1"
+    migration_legacy_status: null
 
 status_definitions:
-  PASS: "Independent recognition and solution of core tasks"
-  PARTIAL: "Understands main idea but needs prompts or remains error-prone"
-  REVISIT: "Concept, recognition, or formula use is unstable"
-  NOT_STARTED: "No valid learning evidence"
+  PASS: "Independently completes recognition, application and verification under the declared test context"
+  PARTIAL: "Understands the main idea but needs prompts, exceeds the time limit or remains error-prone"
+  REVISIT: "Concept, recognition, retrieval or application is unstable in the declared context"
+  NOT_STARTED: "No valid evidence exists for this context"
 
+context_definitions:
+  open_book: "Uses the declared version of allowed notes; records retrieval time and material version"
+  closed_book: "Uses no notes; evaluates recall and internalized application"
+
+update_rules:
+  - "Every evidence item must declare open_book or closed_book."
+  - "Open-book and closed-book status must never be overwritten as one unconditional PASS."
+  - "Importing materials or hearing an explanation does not change mastery."
+  - "A status change requires a linked test, response or verified user performance record."
+  - "When migrating schema v1, retain the old value in migration_legacy_status until new contextual evidence exists."
