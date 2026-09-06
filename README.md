@@ -1,11 +1,18 @@
 # Human Gradient Descent
 
+> **把连接 GitHub 的 ChatGPT 窗口变成拥有长期学习记忆的 AI 教师，无需部署本地模型、服务器或数据库。**  
+> **Turn a GitHub-connected ChatGPT window into a persistent AI tutor—no local model, server, or database deployment required.**
+
 > **讲义炼丹炉：碳基神经网络手动反向传播系统**  
 > *Train yourself like a neural network.*
 
 人脑也是神经网络，只是反向传播需要手动完成。
 
-本项目是一套面向课程学习、考试复习与知识库建设的可复用工作流：把课件和习题作为训练数据，把做题视为前向传播，根据错题计算 Loss，再通过错因诊断完成反向传播和参数更新。经过多个 Epoch 后，将真正理解、测试并纠正过的内容压缩成可检索的开卷讲义。
+Human Gradient Descent 是一个基于 **ChatGPT + GitHub** 的开源 AI 教学与自适应学习系统。它把课件、习题、考试和错题转化为可跨窗口恢复的学习记忆、掌握度记录、针对性训练和考试资料。
+
+Human Gradient Descent is an open-source **AI teaching and adaptive learning system** built on **ChatGPT + GitHub**. It transforms course materials, exercises, exams, and mistakes into persistent learning memory, mastery tracking, targeted practice, and evidence-based exam preparation.
+
+把课件和习题作为训练数据，把做题视为前向传播，根据错题计算 Loss，再通过错因诊断完成反向传播和参数更新。经过多个 Epoch 后，将真正理解、测试并纠正过的内容压缩成可检索的开卷讲义。
 
 这里不生产“看过等于学会”的学习幻觉。每个知识点都需要经过概念理解、题型识别、独立作答、错误诊断和迁移测试，才能被标记为掌握。
 
@@ -23,7 +30,7 @@
 | 能迁移到历年题 | Generalization |
 | 正式考试 | Inference |
 
-这是一个基于 **GPT + GitHub** 实际搭建和验证的空白课程学习模板。GitHub 保存课程资料与学习状态，GPT 负责讲解、测试、诊断以及文件系统管理。
+这是一个基于 **ChatGPT + GitHub** 实际搭建和验证的空白课程学习模板。GitHub 保存课程资料与学习状态，ChatGPT 负责讲解、测试、诊断以及文件系统管理。
 
 ## 1. 怎么使用
 
