@@ -3,7 +3,7 @@
 本文件保存 Agent 判断“值得修改”的候选项，不代表已经获得正式修改授权。
 
 | ID | Date | Scope | Trigger | Evidence | Proposed change | Expected benefit | Priority | Authorization | Applied version | Validation | Status |
-|---|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|---|---|---|
 
 ## Field rules
 
@@ -21,3 +21,7 @@
 3. 用户授权仅覆盖明确确认的待办和范围，不是长期自动授权。
 4. 发现正式资料存在错误时立即提醒用户并提高优先级；未经授权仍不得静默更正。
 5. 已应用但验证失败的修改必须回滚或重新标记为 `PENDING`。
+
+## Learner shorthand
+
+- `[s]`：将紧邻标记的问题或术语用简短、易懂的中文解释；只说明核心区别或关键因果，不展开长篇背景。
